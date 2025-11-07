@@ -1,6 +1,6 @@
-package com.hidroterapia.ondas.repository;
+package com.hidroterapia_ondas.repository;
 
-import com.hidroterapia.ondas.model.User;
+import com.hidroterapia_ondas.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 

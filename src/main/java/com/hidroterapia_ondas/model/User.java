@@ -1,4 +1,4 @@
-package com.hidroterapia.ondas.model;
+package com.hidroterapia_ondas.model;
 
 import jakarta.persistence.*;
 import lombok.Getter;
