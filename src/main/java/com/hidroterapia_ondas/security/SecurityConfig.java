@@ -1,5 +1,7 @@
 package com.hidroterapia_ondas.security;
 
+import com.hidroterapia_ondas.service.UserDetailsServiceImpl;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -20,22 +22,54 @@ public class SecurityConfig {
     @Autowired
     private JwtAuthenticationFilter jwtFilter;
 
+    @Autowired
+    private UserDetailsServiceImpl userDetailsService;
+
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
-            .authorizeHttpRequests(auth -> auth
+
+                //Esto permite ver el H2 Console en el navegador.
+                .headers(headers -> headers.frameOptions(frame -> frame.disable()))
+
+                .authorizeHttpRequests(auth -> auth
                 // Endpoints públicos (sin token)
-                .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
+                .requestMatchers("/api/auth/**", "/h2-console/**").permitAll()
                 // Endpoints solo para ADMIN
-                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
                 // Cualquier otra ruta necesita estar autenticada
                 .anyRequest().authenticated()
             )
-            // No usamos sesiones, solo tokens JWT
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            // Aplicamos el filtro JWT antes del filtro estándar de login
-            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+
+
+                // 🔧 Desactivar el filtro de login por defecto de Spring
+                .formLogin(form -> form.disable())
+                .httpBasic(basic -> basic.disable())
+                .logout(logout -> logout.disable())
+                // No usamos sesiones, solo tokens JWT
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+
+                // Aplicamos el filtro JWT antes del filtro estándar de login
+                http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+
+                http.authenticationProvider(authenticationProvider());
+
+
+        // Manejo de errores personalizados para autenticación/autorización
+        http.exceptionHandling(ex -> ex
+                .authenticationEntryPoint((request, response, authException) -> {
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"error\": \"Unauthorized\", \"message\": \"Token inválido o ausente\"}");
+                })
+                .accessDeniedHandler((request, response, accessDeniedException) -> {
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"error\": \"Forbidden\", \"message\": \"Acceso denegado\"}");
+                })
+        );
 
         return http.build();
     }
@@ -49,4 +83,13 @@ public class SecurityConfig {
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
+
+    @Bean
+    public org.springframework.security.authentication.AuthenticationProvider authenticationProvider() {
+        var provider = new org.springframework.security.authentication.dao.DaoAuthenticationProvider();
+        provider.setUserDetailsService(userDetailsService);
+        provider.setPasswordEncoder(passwordEncoder());
+        return provider;
+    }
+
 }

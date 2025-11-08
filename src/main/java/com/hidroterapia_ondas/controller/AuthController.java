@@ -37,12 +37,22 @@ public class AuthController {
             throw new RuntimeException("Username already exists");
         }
 
+        // Agregar el prefijo del rol correctamente
+        String role = user.getRole();
+        if (role == null || role.isBlank()){
+            role = "ROLE_USER"; //valor por defecto
+        } else if (!role.startsWith("ROLE_")) {
+            role = "ROLE_" + role;
+        }
+        user.setRole(role);
+
         // Encode password and save user
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         userRepository.save(user);
 
         Map<String, Object> response = new HashMap<>();
         response.put("message", "Usuario registrado con éxito");
+        response.put("role", user.getRole());
         return response;
     }
 
