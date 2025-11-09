@@ -27,52 +27,55 @@ public class SecurityConfig {
 
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-            .csrf(csrf -> csrf.disable())
+public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    http
+        // 🔒 Desactivamos CSRF (requerido para APIs y H2)
+        .csrf(csrf -> csrf.disable())
 
-                //Esto permite ver el H2 Console en el navegador.
-                .headers(headers -> headers.frameOptions(frame -> frame.disable()))
+        // 👁️ Permitir el uso de frames (necesario para H2 Console)
+        .headers(headers -> headers.frameOptions(frame -> frame.disable()))
 
-                .authorizeHttpRequests(auth -> auth
-                // Endpoints públicos (sin token)
-                .requestMatchers("/api/auth/**", "/h2-console/**").permitAll()
-                // Endpoints solo para ADMIN
-                .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
-                // Cualquier otra ruta necesita estar autenticada
-                .anyRequest().authenticated()
-            )
+        .authorizeHttpRequests(auth -> auth
+            // ✅ Endpoints públicos (sin token)
+            .requestMatchers("/api/auth/**", "/h2-console/**").permitAll()
 
+            // 🔐 Endpoints solo para ADMIN
+            .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
 
-                // 🔧 Desactivar el filtro de login por defecto de Spring
-                .formLogin(form -> form.disable())
-                .httpBasic(basic -> basic.disable())
-                .logout(logout -> logout.disable())
-                // No usamos sesiones, solo tokens JWT
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+            // 🔒 Cualquier otra ruta necesita estar autenticada
+            .anyRequest().authenticated()
+        )
 
-                // Aplicamos el filtro JWT antes del filtro estándar de login
-                http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+        // 🚫 Desactivar autenticación por formulario y HTTP Basic
+        .formLogin(form -> form.disable())
+        .httpBasic(basic -> basic.disable())
+        .logout(logout -> logout.disable())
 
-                http.authenticationProvider(authenticationProvider());
+        // ⚙️ No usamos sesiones (JWT es stateless)
+        .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-
-        // Manejo de errores personalizados para autenticación/autorización
-        http.exceptionHandling(ex -> ex
-                .authenticationEntryPoint((request, response, authException) -> {
-                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                    response.setContentType("application/json");
-                    response.getWriter().write("{\"error\": \"Unauthorized\", \"message\": \"Token inválido o ausente\"}");
-                })
-                .accessDeniedHandler((request, response, accessDeniedException) -> {
-                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                    response.setContentType("application/json");
-                    response.getWriter().write("{\"error\": \"Forbidden\", \"message\": \"Acceso denegado\"}");
-                })
+        // 🧩 Manejadores de errores personalizados
+        .exceptionHandling(ex -> ex
+            .authenticationEntryPoint((request, response, authException) -> {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\": \"Unauthorized\", \"message\": \"Token inválido o ausente\"}");
+            })
+            .accessDeniedHandler((request, response, accessDeniedException) -> {
+                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\": \"Forbidden\", \"message\": \"Acceso denegado\"}");
+            })
         );
 
-        return http.build();
-    }
+    // 🧱 Aplicamos el filtro JWT antes del filtro estándar de autenticación
+    http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+
+    // ⚙️ Añadimos el AuthenticationProvider configurado
+    http.authenticationProvider(authenticationProvider());
+
+    return http.build();
+}
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
