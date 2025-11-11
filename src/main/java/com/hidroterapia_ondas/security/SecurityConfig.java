@@ -50,6 +50,8 @@ public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Excepti
             // ✅ Endpoints públicos (sin token)
             .requestMatchers("/api/auth/**", "/h2-console/**").permitAll()
 
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()  // <— permitir preflight global
+
             // 🔐 Endpoints solo para ADMIN
             .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
 
@@ -112,22 +114,20 @@ public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Excepti
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-
-        // Para diagnosticar rápido, puedes probar con patterns:
-        configuration.setAllowedOriginPatterns(List.of(
-                "http://localhost:*",                 // cualquier puerto localhost (incluye 63343)
-                "http://127.0.0.1:*",                // por si tu IDE usa 127.0.0.1
-                "https://marshallgomez1103.github.io"
+        configuration.setAllowedOrigins(List.of(
+                "http://localhost:63343",            // si sirves el HTML localmente
+                "https://marshallgomez1103.github.io" // si lo sirves desde GitHub Pages
         ));
         configuration.setAllowedMethods(List.of("GET","POST","PUT","DELETE","OPTIONS"));
         configuration.setAllowedHeaders(List.of("Content-Type","Authorization"));
         configuration.setAllowCredentials(true);
-        configuration.setMaxAge(3600L); // cachea el preflight 1h
+        configuration.setMaxAge(3600L); // cachear preflight 1h
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
 
-    
+
+
 }
