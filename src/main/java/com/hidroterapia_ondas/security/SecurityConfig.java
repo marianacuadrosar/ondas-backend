@@ -5,6 +5,8 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.List;
 
+import org.springframework.http.HttpMethod;
+
 
 import com.hidroterapia_ondas.service.UserDetailsServiceImpl;
 import jakarta.servlet.http.HttpServletResponse;
@@ -50,6 +52,9 @@ public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Excepti
 
             // 🔐 Endpoints solo para ADMIN
             .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
+
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
 
             // 🔒 Cualquier otra ruta necesita estar autenticada
             .anyRequest().authenticated()
@@ -107,18 +112,22 @@ public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Excepti
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of(
-                "http://localhost:63343",  // para pruebas locales desde tu IDE
-                "https://marshallgomez1103.github.io"  // dominio de tu frontend desplegado
+
+        // Para diagnosticar rápido, puedes probar con patterns:
+        configuration.setAllowedOriginPatterns(List.of(
+                "http://localhost:*",                 // cualquier puerto localhost (incluye 63343)
+                "http://127.0.0.1:*",                // por si tu IDE usa 127.0.0.1
+                "https://marshallgomez1103.github.io"
         ));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Content-Type", "Authorization"));
+        configuration.setAllowedMethods(List.of("GET","POST","PUT","DELETE","OPTIONS"));
+        configuration.setAllowedHeaders(List.of("Content-Type","Authorization"));
         configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L); // cachea el preflight 1h
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
 
-
+    
 }
