@@ -1,5 +1,11 @@
 package com.hidroterapia_ondas.security;
 
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import java.util.List;
+
+
 import com.hidroterapia_ondas.service.UserDetailsServiceImpl;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,7 +38,10 @@ public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Excepti
         // 🔒 Desactivamos CSRF (requerido para APIs y H2)
         .csrf(csrf -> csrf.disable())
 
-        // 👁️ Permitir el uso de frames (necesario para H2 Console)
+        // ✅ habilita CORS globalmente
+        .cors(cors -> {})
+
+            // 👁️ Permitir el uso de frames (necesario para H2 Console)
         .headers(headers -> headers.frameOptions(frame -> frame.disable()))
 
         .authorizeHttpRequests(auth -> auth
@@ -94,5 +103,22 @@ public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Excepti
         provider.setPasswordEncoder(passwordEncoder());
         return provider;
     }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(List.of(
+                "http://localhost:63343",  // para pruebas locales desde tu IDE
+                "https://marshallgomez1103.github.io"  // dominio de tu frontend desplegado
+        ));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("Content-Type", "Authorization"));
+        configuration.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
+
 
 }
