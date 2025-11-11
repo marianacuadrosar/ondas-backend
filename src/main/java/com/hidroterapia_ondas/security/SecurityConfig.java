@@ -55,9 +55,7 @@ public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Excepti
             // 🔐 Endpoints solo para ADMIN
             .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
 
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-
-
+                
             // 🔒 Cualquier otra ruta necesita estar autenticada
             .anyRequest().authenticated()
         )
@@ -113,20 +111,21 @@ public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Excepti
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of(
-                "http://localhost:63343",            // si sirves el HTML localmente
-                "https://marshallgomez1103.github.io" // si lo sirves desde GitHub Pages
+        CorsConfiguration cfg = new CorsConfiguration();
+        cfg.setAllowedOriginPatterns(List.of(
+                "http://localhost:*",                 // pruebas locales (Live Server/IDE)
+                "http://127.0.0.1:*",
+                "https://marshallgomez1103.github.io" // tu frontend en GH Pages
         ));
-        configuration.setAllowedMethods(List.of("GET","POST","PUT","DELETE","OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Content-Type","Authorization"));
-        configuration.setAllowCredentials(true);
-        configuration.setMaxAge(3600L); // cachear preflight 1h
-
+        cfg.setAllowedMethods(List.of("GET","POST","PUT","DELETE","OPTIONS"));
+        cfg.setAllowedHeaders(List.of("Content-Type","Authorization"));
+        cfg.setAllowCredentials(true);
+        cfg.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
+        source.registerCorsConfiguration("/**", cfg);
         return source;
     }
+
 
 
 
