@@ -53,9 +53,9 @@ public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Excepti
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()  // <— permitir preflight global
 
             // 🔐 Endpoints solo para ADMIN
-            .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
+            .requestMatchers("/api/admin/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
 
-                
+
             // 🔒 Cualquier otra ruta necesita estar autenticada
             .anyRequest().authenticated()
         )
@@ -119,6 +119,7 @@ public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Excepti
         ));
         cfg.setAllowedMethods(List.of("GET","POST","PUT","DELETE","OPTIONS"));
         cfg.setAllowedHeaders(List.of("Content-Type","Authorization"));
+        cfg.setExposedHeaders(List.of("Authorization"));
         cfg.setAllowCredentials(true);
         cfg.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
