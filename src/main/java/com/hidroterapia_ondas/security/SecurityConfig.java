@@ -48,12 +48,12 @@ public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Excepti
 
         .authorizeHttpRequests(auth -> auth
             // ✅ Endpoints públicos (sin token)
-            .requestMatchers("/api/auth/**", "/h2-console/**").permitAll()
+            .requestMatchers("/api/auth/**", "/api/products", "/h2-console/**").permitAll()
 
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()  // <— permitir preflight global
 
             // 🔐 Endpoints solo para ADMIN
-            .requestMatchers("/api/admin/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
+            .requestMatchers("/api/admin/**", "/api/orders/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
 
 
             // 🔒 Cualquier otra ruta necesita estar autenticada
