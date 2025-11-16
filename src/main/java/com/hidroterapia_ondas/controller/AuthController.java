@@ -72,6 +72,10 @@ public class AuthController {
         response.put("token", token);
         response.put("username", username);
         response.put("type", "Bearer");
+
+        response.put("role", authentication.getAuthorities().iterator().next().getAuthority());
+
+
         return response;
     }
 }
