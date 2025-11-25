@@ -96,7 +96,16 @@
 			<version>1.18.32</version> <!-- o la última versión estable -->
 			<scope>provided</scope>
 		</dependency>
+
+		<!-- Driver MySQL -->
+		<dependency>
+			<groupId>com.mysql</groupId>
+			<artifactId>mysql-connector-j</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+
 	</dependencies>
+
 
 	<build>
 		<plugins>
