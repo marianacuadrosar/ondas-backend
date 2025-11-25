@@ -50,6 +50,9 @@ public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Excepti
             // ✅ Endpoints públicos (sin token)
             .requestMatchers("/api/auth/**", "/h2-console/**").permitAll()
 
+            // 👉 Hacer público el catálogo de servicios
+            .requestMatchers(HttpMethod.GET, "/api/service/all").permitAll()
+
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()  // <— permitir preflight global
 
             // 🔐 Endpoints solo para ADMIN
