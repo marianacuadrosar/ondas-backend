@@ -1,102 +1,84 @@
 package com.hidroterapia_ondas.security;
 
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import java.util.List;
-
-import org.springframework.http.HttpMethod;
-
-
 import com.hidroterapia_ondas.service.UserDetailsServiceImpl;
-import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.List;
 
 @Configuration
-@EnableMethodSecurity
+@EnableWebSecurity
+@EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
-    @Autowired
-    private JwtAuthenticationFilter jwtFilter;
+    private final UserDetailsServiceImpl userDetailsService;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    @Autowired
-    private UserDetailsServiceImpl userDetailsService;
-
-
-    @Bean
-public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-    http
-        // 🔒 Desactivamos CSRF (requerido para APIs y H2)
-        .csrf(csrf -> csrf.disable())
-
-        // ✅ habilita CORS globalmente
-        .cors(cors -> {})
-
-            // 👁️ Permitir el uso de frames (necesario para H2 Console)
-        .headers(headers -> headers.frameOptions(frame -> frame.disable()))
-
-        .authorizeHttpRequests(auth -> auth
-            // ✅ Endpoints públicos (sin token)
-            .requestMatchers("/api/auth/**", "/api/products", "/h2-console/**").permitAll()
-
-            // 👉 Hacer público el catálogo de servicios
-            .requestMatchers(HttpMethod.GET, "/api/service/all").permitAll()
-
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()  // <— permitir preflight global
-
-            // 🔐 Endpoints solo para ADMIN
-            .requestMatchers("/api/admin/**", "/api/orders/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
-
-
-            // 🔒 Cualquier otra ruta necesita estar autenticada
-            .anyRequest().authenticated()
-        )
-
-        // 🚫 Desactivar autenticación por formulario y HTTP Basic
-        .formLogin(form -> form.disable())
-        .httpBasic(basic -> basic.disable())
-        .logout(logout -> logout.disable())
-
-        // ⚙️ No usamos sesiones (JWT es stateless)
-        .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-
-        // 🧩 Manejadores de errores personalizados
-        .exceptionHandling(ex -> ex
-            .authenticationEntryPoint((request, response, authException) -> {
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.setContentType("application/json");
-                response.getWriter().write("{\"error\": \"Unauthorized\", \"message\": \"Token inválido o ausente\"}");
-            })
-            .accessDeniedHandler((request, response, accessDeniedException) -> {
-                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                response.setContentType("application/json");
-                response.getWriter().write("{\"error\": \"Forbidden\", \"message\": \"Acceso denegado\"}");
-            })
-        );
-
-    // 🧱 Aplicamos el filtro JWT antes del filtro estándar de autenticación
-    http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
-
-    // ⚙️ Añadimos el AuthenticationProvider configurado
-    http.authenticationProvider(authenticationProvider());
-
-    return http.build();
-}
+    public SecurityConfig(UserDetailsServiceImpl userDetailsService,
+                          JwtAuthenticationFilter jwtAuthenticationFilter) {
+        this.userDetailsService = userDetailsService;
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+    }
 
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
-        return config.getAuthenticationManager();
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+
+        http
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .headers(headers -> headers.frameOptions(frame -> frame.disable()))
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+        // H2 console pública
+        .requestMatchers("/h2-console/**").permitAll()
+
+        // ENDPOINTS PÚBLICOS
+        .requestMatchers(HttpMethod.GET, "/api/service/**").permitAll()
+        .requestMatchers("/api/auth/**").permitAll()
+        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+        // CREAR PEDIDOS: cualquier usuario (cliente o admin)
+    // Allow creating orders without authentication (covers /api/orders and any subpaths)
+    .requestMatchers(HttpMethod.POST, "/api/orders", "/api/orders/**").permitAll()
+
+        // VER / ADMINISTRAR PEDIDOS: solo ADMIN
+        .requestMatchers(HttpMethod.GET, "/api/orders/**", "/api/admin/**")
+            .hasAnyAuthority("ROLE_ADMIN", "ADMIN")
+
+        // Cualquier otra cosa requiere autenticación
+        .anyRequest().authenticated()
+)
+
+                .userDetailsService(userDetailsService);
+
+        // SIN authenticationEntryPoint personalizado por ahora
+        // para que no meta mensajes raros
+
+        http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration)
+            throws Exception {
+        return configuration.getAuthenticationManager();
     }
 
     @Bean
@@ -105,32 +87,20 @@ public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Excepti
     }
 
     @Bean
-    public org.springframework.security.authentication.AuthenticationProvider authenticationProvider() {
-        var provider = new org.springframework.security.authentication.dao.DaoAuthenticationProvider();
-        provider.setUserDetailsService(userDetailsService);
-        provider.setPasswordEncoder(passwordEncoder());
-        return provider;
-    }
-
-    @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cfg = new CorsConfiguration();
         cfg.setAllowedOriginPatterns(List.of(
-                "http://localhost:*",                 // pruebas locales (Live Server/IDE)
-                "http://127.0.0.1:*",
-                "https://marshallgomez1103.github.io" // tu frontend en GH Pages
+                "http://localhost:*",
+                "http://127.0.0.1:*"
         ));
-        cfg.setAllowedMethods(List.of("GET","POST","PUT","DELETE","OPTIONS"));
-        cfg.setAllowedHeaders(List.of("Content-Type","Authorization"));
+        cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        cfg.setAllowedHeaders(List.of("Content-Type", "Authorization"));
         cfg.setExposedHeaders(List.of("Authorization"));
         cfg.setAllowCredentials(true);
         cfg.setMaxAge(3600L);
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", cfg);
         return source;
     }
-
-
-
-
 }

@@ -19,21 +19,29 @@ public class DataInitializer {
     private String adminRole;
 
     @Bean
-    CommandLineRunner initUsers(UserRepository userRepo, PasswordEncoder encoder) {
+CommandLineRunner initUsers(UserRepository userRepo, PasswordEncoder encoder) {
 
-        return args -> {
+    return args -> {
 
-            userRepo.findByUsername(adminUsername).ifPresentOrElse(u -> {
+        userRepo.findByUsername(adminUsername).ifPresentOrElse(u -> {
+            // Ya existe, no hacer nada
+        }, () -> {
+            User admin = new User();
+            admin.setUsername(adminUsername);
+            admin.setPassword(encoder.encode(adminPassword));
 
-                // Ya existe, no hacer nada
-            }, () -> {
-                User admin = new User();
-                admin.setUsername(adminUsername);
-                admin.setPassword(encoder.encode(adminPassword));
-                admin.setRole(adminRole);
-                userRepo.save(admin);
-                System.out.println("Usuario admin creado");
-            });
-        };
-    }
+            String role = adminRole;
+            if (role == null || role.isBlank()) {
+                role = "ROLE_ADMIN";
+            } else if (!role.startsWith("ROLE_")) {
+                role = "ROLE_" + role;
+            }
+            admin.setRole(role);
+
+            userRepo.save(admin);
+            System.out.println("Usuario admin creado: " + adminUsername + " con rol " + role);
+        });
+    };
+}
+
 }
