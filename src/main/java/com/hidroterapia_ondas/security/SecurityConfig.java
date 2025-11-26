@@ -45,31 +45,33 @@ public class SecurityConfig {
                 .headers(headers -> headers.frameOptions(frame -> frame.disable()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-        // H2 console pública
-        .requestMatchers("/h2-console/**").permitAll()
 
-        // ENDPOINTS PÚBLICOS
-        .requestMatchers(HttpMethod.GET, "/api/service/**").permitAll()
-        .requestMatchers("/api/auth/**").permitAll()
-        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        // H2 Console pública
+                        .requestMatchers("/h2-console/**").permitAll()
 
-        // CREAR PEDIDOS: cualquier usuario (cliente o admin)
-    // Allow creating orders without authentication (covers /api/orders and any subpaths)
-    .requestMatchers(HttpMethod.POST, "/api/orders", "/api/orders/**").permitAll()
+                        // ENDPOINTS PÚBLICOS PARA FRONTEND
+                        .requestMatchers(HttpMethod.GET, "/api/service/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
 
-        // VER / ADMINISTRAR PEDIDOS: solo ADMIN
-        .requestMatchers(HttpMethod.GET, "/api/orders/**", "/api/admin/**")
-            .hasAnyAuthority("ROLE_ADMIN", "ADMIN")
+                        // AUTH es público (login, register, etc.)
+                        .requestMatchers("/api/auth/**").permitAll()
 
-        // Cualquier otra cosa requiere autenticación
-        .anyRequest().authenticated()
-)
+                        // Permitir llamadas OPTIONS (CORS preflight)
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
+                        // CREAR PEDIDOS: público
+                        .requestMatchers(HttpMethod.POST, "/api/orders", "/api/orders/**").permitAll()
+
+                        // VER LISTA DE PEDIDOS / ADMIN → SOLO ADMIN
+                        .requestMatchers(HttpMethod.GET, "/api/orders/**").hasAnyAuthority("ADMIN", "ROLE_ADMIN")
+                        .requestMatchers("/api/admin/**").hasAnyAuthority("ADMIN", "ROLE_ADMIN")
+
+                        // TODO lo demás requiere autenticación
+                        .anyRequest().authenticated()
+                )
                 .userDetailsService(userDetailsService);
 
-        // SIN authenticationEntryPoint personalizado por ahora
-        // para que no meta mensajes raros
-
+        // FILTRO JWT ANTES DEL USERNAME/PASSWORD FILTER
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -90,13 +92,12 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cfg = new CorsConfiguration();
         cfg.setAllowedOriginPatterns(List.of(
-                "http://localhost:*",
-                "http://127.0.0.1:*"
+                "*"
         ));
         cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         cfg.setAllowedHeaders(List.of("Content-Type", "Authorization"));
         cfg.setExposedHeaders(List.of("Authorization"));
-        cfg.setAllowCredentials(true);
+        cfg.setAllowCredentials(false);
         cfg.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

@@ -34,18 +34,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String path = request.getServletPath();
 
-        // Rutas que NO pasan por JWT (auth pública, servicios públicos, H2)
-        if (path.startsWith("/api/auth/")
-                || path.startsWith("/api/service/")
+        // RUTAS PÚBLICAS → NO PASAN POR JWT
+        if (path.startsWith("/api/auth")
+                || path.startsWith("/api/service")
+                || path.startsWith("/api/products")
+                || (path.startsWith("/api/orders") && request.getMethod().equals("POST"))
                 || path.startsWith("/h2-console")) {
 
             filterChain.doFilter(request, response);
             return;
         }
 
+        // -----------------------------------------
+        // DESDE AQUI SIGUE LA VALIDACIÓN JWT NORMAL
+        // -----------------------------------------
+
         String authHeader = request.getHeader("Authorization");
 
-        // Si no hay token Bearer, no hacemos nada y seguimos
+        // Si no hay token Bearer, dejamos seguir
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
@@ -64,9 +70,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                 null,
                                 userDetails.getAuthorities()
                         );
-                authToken.setDetails(
-                        new WebAuthenticationDetailsSource().buildDetails(request)
-                );
+                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+
                 SecurityContextHolder.getContext().setAuthentication(authToken);
             }
         }
